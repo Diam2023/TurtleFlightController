@@ -1,0 +1,15 @@
+.settings
+.vscode
+build
+Debug
+.cproject*
+.mxproject
+.project*
+Flight Debug*
+_STM32-for-VSCode.config.yaml
+FATFS
+Drvers
+Middlewares
+USB_DEVICE
+MDK-ARM
+Drivers
