@@ -13,3 +13,6 @@ Middlewares
 USB_DEVICE
 MDK-ARM
 Drivers
+
+.idea
+cmake-build-debug

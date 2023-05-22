@@ -9,15 +9,20 @@
 
 // log
 static TurtleLog *g_pTurtleLog = NULL;
-size_t            sizeNow;
+// size_t            sizeNow;
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart == g_pTurtleLog->m_pHuart)
     {
+        if (g_pTurtleLog == NULL)
+        {
+            return;
+        }
         HAL_UART_DMAStop(g_pTurtleLog->m_pHuart);
 
-        sizeNow = osSemaphoreGetCount(g_pTurtleLog->m_pSendStatusSemaphore);
+        // sizeNow = osSemaphoreGetCount(g_pTurtleLog->m_pSendStatusSemaphore);
+        // osSemaphoreGetCount(g_pTurtleLog->m_pSendStatusSemaphore);
         osSemaphoreRelease(g_pTurtleLog->m_pSendStatusSemaphore);
     }
 }
@@ -37,9 +42,13 @@ void LogTask(void *arg)
 
     for (;;)
     {
-        if (osSemaphoreAcquire(g_pTurtleLog->m_pSendStatusSemaphore, osWaitForever) == osOK)
+        if (g_pTurtleLog == NULL)
         {
-            if (osMessageQueueGet(g_pTurtleLog->m_pMessageQueue, &pLogData, NULL, osWaitForever) == osOK)
+            continue;
+        }
+        if (osSemaphoreAcquire(g_pTurtleLog->m_pSendStatusSemaphore, 100) == osOK)
+        {
+            if (osMessageQueueGet(g_pTurtleLog->m_pMessageQueue, &pLogData, NULL, 100) == osOK)
             {
                 // BUG Wait Fix
 
@@ -49,13 +58,15 @@ void LogTask(void *arg)
                 {
                     osMessageQueueReset(g_pTurtleLog->m_pMessageQueue);
                 }
-                
+
                 if (g_pTurtleLog->m_pPrevMessage != NULL)
                 {
                     vPortFree(g_pTurtleLog->m_pPrevMessage);
                 }
 
                 g_pTurtleLog->m_pPrevMessage = pLogData.m_pMessage;
+                // HAL_UART_Transmit(g_pTurtleLog->m_pHuart, (unsigned char *)pLogData.m_pMessage,
+                //                       pLogData.messageLength, 500);
                 HAL_UART_Transmit_DMA(g_pTurtleLog->m_pHuart, (unsigned char *)pLogData.m_pMessage,
                                       pLogData.messageLength);
             }
@@ -123,7 +134,7 @@ void SerialLog(LogLevel level, const char *pTag, const char *pMessage, ...)
 
     LogMessage logData;
     logData.m_pMessage    = pTempData;
-    logData.messageLength = 48;
+    logData.messageLength = 64;
 
     // 加入队列
     if (osMessageQueuePut(g_pTurtleLog->m_pMessageQueue, &logData, 0, 100) != osOK)
@@ -160,16 +171,16 @@ void InitializeLog(UART_HandleTypeDef *huart)
 
     if (g_pTurtleLog->m_pMessageQueue == NULL)
     {
-        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitQueue", 12, 100);
+        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitQueue\r\n", 14, 500);
     }
 
     if (g_pTurtleLog->m_pLogThread == NULL)
     {
-        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitThread", 13, 100);
+        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitThread\r\n", 15, 500);
     }
 
     if (g_pTurtleLog->m_pSendStatusSemaphore == NULL)
     {
-        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitStatus", 13, 100);
+        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitStatus\r\n", 15, 500);
     }
 }

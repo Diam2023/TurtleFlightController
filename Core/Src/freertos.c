@@ -26,7 +26,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-// #include "turtle.h"
 #include "iwdg.h"
 #include "usart.h"
 #include "status_light.h"
@@ -96,7 +95,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
@@ -105,10 +103,6 @@ void MX_FREERTOS_Init(void) {
   mainTaskHandle = osThreadNew(StartMainTask, NULL, &mainTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  InitTest();
-
-  SerialLog(LOG_INFO, "System", "SystemUp");
-
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
@@ -130,6 +124,9 @@ void StartMainTask(void *argument)
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN StartMainTask */
+
+  InitTest();
+  SerialLog(LOG_INFO, "System", "SystemUp");
 
   /* Infinite loop */
   for(;;)

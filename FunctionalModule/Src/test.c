@@ -33,7 +33,7 @@ float ComplementaryFilter(float acc, float gyro, float dt, float lastAngle)
 
 AngleSructure angleData;
 
-void DataCalcTimer(void *)
+void DataCalcTimer(void *c)
 {
     // Sync
     GYRO_DataStructure gyro;
@@ -66,6 +66,12 @@ void DataCalcTimer(void *)
     }
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    // TODO Error handler
+    WS2812_Write(255, 255, 255);
+}
+
 void InitTest()
 {
 #if defined(TEST_ALL) || defined(TEST_LOG)
@@ -80,6 +86,10 @@ void InitTest()
 
 #endif
 
+        // SerialLog(LOG_INFO, "TEST", "1");
+        // SerialLog(LOG_INFO, "TEST", "2");
+        // SerialLog(LOG_INFO, "TEST", "3");
+
 #if defined(TEST_ALL) || defined(TEST_BMP280)
 
     if (BMP280_Initialize() == DRIVER_OK)
@@ -89,7 +99,7 @@ void InitTest()
     else
     {
         SerialLog(LOG_ERROR, "TEST", "Error For Initialize BARO!");
-    }
+    }    
 
 #endif
 
@@ -121,7 +131,7 @@ void InitTest()
 
     const osThreadAttr_t testTask_attributes = {
         .name       = "testTask",
-        .stack_size = 64 * 8,
+        .stack_size = 128 * 4,
         .priority   = (osPriority_t)osPriorityLow,
     };
 
@@ -139,8 +149,8 @@ void TestTask(void *tes)
     for (;;)
     {
 #if defined(TEST_ALL) || defined(TEST_LOG)
-        // SerialLog(LOG_WARNING, "LOG", "TEST");
-        // osDelay(100);
+        SerialLog(LOG_WARNING, "LOG", "TEST");
+        osDelay(100);
 #endif
 
 #if defined(TEST_ALL) || defined(TEST_WS2812)
