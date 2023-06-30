@@ -50,11 +50,12 @@ typedef struct
     // last send message, use for release
     char* m_pPrevMessage;
 
+    // messageQueue
     osMessageQueueId_t m_pMessageQueue;
 
     // send status
     // osMutexId_t m_pSendStatusMutex;
-    osSemaphoreId_t m_pSendStatusSemaphore;
+    // osSemaphoreId_t m_pSendStatusSemaphore;
 
     osThreadId_t m_pLogThread;
 } TurtleLog;

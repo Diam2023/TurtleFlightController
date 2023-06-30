@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 /**
  * @file test.h
  * @author Monoliths (monoliths-uni@outlook.com)
@@ -14,6 +15,6 @@
 
 void InitTest();
 
-void TestTask(void* tes);
+_Noreturn void TestTask(void* tes);
 
 #endif // TURTLE_FLIGHT_TEST_H

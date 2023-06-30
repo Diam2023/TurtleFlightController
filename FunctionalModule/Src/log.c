@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include "log.h"
 
 #include "cmsis_os.h"
@@ -21,9 +22,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
         }
         HAL_UART_DMAStop(g_pTurtleLog->m_pHuart);
 
-        // sizeNow = osSemaphoreGetCount(g_pTurtleLog->m_pSendStatusSemaphore);
-        // osSemaphoreGetCount(g_pTurtleLog->m_pSendStatusSemaphore);
-        osSemaphoreRelease(g_pTurtleLog->m_pSendStatusSemaphore);
+        osThreadFlagsSet(g_pTurtleLog->m_pLogThread, 0x01);
     }
 }
 
@@ -36,7 +35,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
  * @date 2023-03-15
  * @copyright Copyright (c) 2023
  */
-void LogTask(void *arg)
+_Noreturn void LogTask(void *arg)
 {
     LogMessage pLogData;
 
@@ -44,37 +43,22 @@ void LogTask(void *arg)
     {
         if (g_pTurtleLog == NULL)
         {
+            // Start Wait Initialize
+            osDelay(100);
             continue;
         }
-        if (osSemaphoreAcquire(g_pTurtleLog->m_pSendStatusSemaphore, 100) == osOK)
+        osMessageQueueGet(g_pTurtleLog->m_pMessageQueue, &pLogData, NULL, osWaitForever);
+
+        if (g_pTurtleLog->m_pPrevMessage != NULL)
         {
-            if (osMessageQueueGet(g_pTurtleLog->m_pMessageQueue, &pLogData, NULL, 100) == osOK)
-            {
-                // BUG Wait Fix
-
-                // BUG描述 osMessageQueueGet将会出现
-                // 临时方案
-                if (osMessageQueueGetCount(g_pTurtleLog->m_pMessageQueue) == 0)
-                {
-                    osMessageQueueReset(g_pTurtleLog->m_pMessageQueue);
-                }
-
-                if (g_pTurtleLog->m_pPrevMessage != NULL)
-                {
-                    vPortFree(g_pTurtleLog->m_pPrevMessage);
-                }
-
-                g_pTurtleLog->m_pPrevMessage = pLogData.m_pMessage;
-                // HAL_UART_Transmit(g_pTurtleLog->m_pHuart, (unsigned char *)pLogData.m_pMessage,
-                //                       pLogData.messageLength, 500);
-                HAL_UART_Transmit_DMA(g_pTurtleLog->m_pHuart, (unsigned char *)pLogData.m_pMessage,
-                                      pLogData.messageLength);
-            }
-            else
-            {
-                osSemaphoreRelease(g_pTurtleLog->m_pSendStatusSemaphore);
-            }
+            vPortFree(g_pTurtleLog->m_pPrevMessage);
         }
+
+        g_pTurtleLog->m_pPrevMessage = pLogData.m_pMessage;
+
+        osThreadFlagsWait(0x01, osFlagsWaitAll, osWaitForever);
+
+        HAL_UART_Transmit_DMA(g_pTurtleLog->m_pHuart, (unsigned char *)pLogData.m_pMessage,pLogData.messageLength);
         osDelay(10);
     }
 }
@@ -93,8 +77,12 @@ void LogTask(void *arg)
  */
 void SerialLog(LogLevel level, const char *pTag, const char *pMessage, ...)
 {
-    // TODO 优化该函数，使用队列来缓存消息
-    // !important 优化该函数在栈上的开销
+//    if (osMessageQueueGetCount(g_pTurtleLog->m_pMessageQueue) >= (osMessageQueueGetCapacity(g_pTurtleLog->m_pMessageQueue) + 1))
+//    {
+//        // 缓存消息太多了，不受理
+//        return;
+//    }
+    // TODO !important 优化该函数在栈上的开销
     char *pTempData = pvPortMalloc(64);
 
     memset(pTempData, 0, 64);
@@ -103,7 +91,7 @@ void SerialLog(LogLevel level, const char *pTag, const char *pMessage, ...)
     // 处理可变参数
     va_list args;
     va_start(args, pMessage);
-    vsnprintf(pMessageTemp, 40 + 1, pMessage, args);
+    vsnprintf(pMessageTemp, 40, pMessage, args);
     va_end(args);
 
     // 日志级别设置
@@ -137,10 +125,11 @@ void SerialLog(LogLevel level, const char *pTag, const char *pMessage, ...)
     logData.messageLength = 64;
 
     // 加入队列
-    if (osMessageQueuePut(g_pTurtleLog->m_pMessageQueue, &logData, 0, 100) != osOK)
-    {
-        vPortFree(pTempData);
-    }
+    osMessageQueuePut(g_pTurtleLog->m_pMessageQueue, &logData, 0, osWaitForever);
+//    if (osMessageQueuePut(g_pTurtleLog->m_pMessageQueue, &logData, 0, 100) != osOK)
+//    {
+//        vPortFree(pTempData);
+//    }
 }
 
 void InitializeLog(UART_HandleTypeDef *huart)
@@ -159,15 +148,13 @@ void InitializeLog(UART_HandleTypeDef *huart)
     g_pTurtleLog->m_pMessageQueue = osMessageQueueNew(16, sizeof(LogMessage), &logQueueHandle_attributes);
 
     const osThreadAttr_t logTask_attributes = {
-        .name       = "logTask",
-        .stack_size = 128,
-        .priority   = (osPriority_t)osPriorityNormal,
+            .name       = "logTask",
+            .stack_size = 256,
+            .priority   = (osPriority_t)osPriorityNormal,
     };
 
     // Start Log Task
     g_pTurtleLog->m_pLogThread = osThreadNew(LogTask, NULL, &logTask_attributes);
-
-    g_pTurtleLog->m_pSendStatusSemaphore = osSemaphoreNew(1, 1, NULL);
 
     if (g_pTurtleLog->m_pMessageQueue == NULL)
     {
@@ -179,8 +166,5 @@ void InitializeLog(UART_HandleTypeDef *huart)
         HAL_UART_Transmit(huart, (unsigned char *)"ErrInitThread\r\n", 15, 500);
     }
 
-    if (g_pTurtleLog->m_pSendStatusSemaphore == NULL)
-    {
-        HAL_UART_Transmit(huart, (unsigned char *)"ErrInitStatus\r\n", 15, 500);
-    }
+    osThreadFlagsSet(g_pTurtleLog->m_pLogThread, 0x01);
 }

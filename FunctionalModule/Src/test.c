@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 /**
  * @file test.c
  * @author Monoliths (monoliths-uni@outlook.com)
@@ -24,24 +25,21 @@
 
 osThreadId_t pTestTaskId;
 
-float ComplementaryFilter(float acc, float gyro, float dt, float lastAngle)
-{
-    float a     = 0.96;
+float ComplementaryFilter(float acc, float gyro, float dt, float lastAngle) {
+    float a = 0.96f;
     float angle = a * (lastAngle + gyro * dt) + (1 - a) * (acc);
     return angle;
 }
 
 AngleSructure angleData;
 
-void DataCalcTimer(void *c)
-{
+void DataCalcTimer(void *c) {
     // Sync
     GYRO_DataStructure gyro;
-    ACC_DataStructure  acc;
+    ACC_DataStructure acc;
 
     if ((LSM6DOS_GetDataStatus() & (STATUS_GYROSCOPE_NEWDATA_AVAILABLE & STATUS_ACCELEROMETER_NEWDATA_AVAILABLE)) ==
-        (STATUS_GYROSCOPE_NEWDATA_AVAILABLE & STATUS_ACCELEROMETER_NEWDATA_AVAILABLE))
-    {
+        (STATUS_GYROSCOPE_NEWDATA_AVAILABLE & STATUS_ACCELEROMETER_NEWDATA_AVAILABLE)) {
         LSM6DOS_GetGyro(&gyro);
         LSM6DOS_GetAcc(&acc);
 
@@ -66,14 +64,25 @@ void DataCalcTimer(void *c)
     }
 }
 
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    // TODO Error handler
-    WS2812_Write(255, 255, 255);
+//void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+//{
+//    // TODO Error handler
+//    WS2812_Write(255, 255, 255);
+//}
+
+void InitTest() {
+
+    const osThreadAttr_t testTask_attributes = {
+            .name       = "testTask",
+            .stack_size = 128 * 4,
+            .priority   = (osPriority_t) osPriorityLow,
+    };
+
+    pTestTaskId = osThreadNew(TestTask, NULL, &testTask_attributes);
+
 }
 
-void InitTest()
-{
+_Noreturn void TestTask(void *tes) {
 #if defined(TEST_ALL) || defined(TEST_LOG)
 
     InitializeLog(&huart1);
@@ -86,69 +95,37 @@ void InitTest()
 
 #endif
 
-        // SerialLog(LOG_INFO, "TEST", "1");
-        // SerialLog(LOG_INFO, "TEST", "2");
-        // SerialLog(LOG_INFO, "TEST", "3");
-
 #if defined(TEST_ALL) || defined(TEST_BMP280)
 
-    if (BMP280_Initialize() == DRIVER_OK)
-    {
+    if (BMP280_Initialize() == DRIVER_OK) {
         SerialLog(LOG_INFO, "TEST", "Initialize BARO Successful!");
-    }
-    else
-    {
+    } else {
         SerialLog(LOG_ERROR, "TEST", "Error For Initialize BARO!");
-    }    
+    }
 
 #endif
 
 #if defined(TEST_ALL) || defined(TEST_W25Q16)
 
-    if (W25Q16_Initialize() == DRIVER_OK)
-    {
+    if (W25Q16_Initialize() == DRIVER_OK) {
         SerialLog(LOG_INFO, "TEST", "Initialize FLASH Successful!");
-    }
-    else
-    {
+    } else {
         SerialLog(LOG_ERROR, "TEST", "Error For Initialize FLASH!");
     }
 
 #endif
 
 #if defined(TEST_ALL) || defined(TEST_LSM6DOS)
-
-    if (LSM6DOS_Initialize() == DRIVER_OK)
-    {
+    if (LSM6DOS_Initialize() == DRIVER_OK) {
         SerialLog(LOG_INFO, "TEST", "Initialize ACC Successful!");
-    }
-    else
-    {
+    } else {
         SerialLog(LOG_ERROR, "TEST", "Error For Initialize ACC!");
     }
-
 #endif
 
-    const osThreadAttr_t testTask_attributes = {
-        .name       = "testTask",
-        .stack_size = 128 * 4,
-        .priority   = (osPriority_t)osPriorityLow,
-    };
-
-    pTestTaskId = osThreadNew(TestTask, NULL, &testTask_attributes);
-
-    osTimerAttr_t dataTimerAttr = {.name = "dataTimer"};
-
-    osTimerId_t timer = osTimerNew(&DataCalcTimer, osTimerPeriodic, NULL, &dataTimerAttr);
-    // 5ms once
-    osTimerStart(timer, 5);
-}
-
-void TestTask(void *tes)
-{
-    for (;;)
-    {
+    for (;;) {
 #if defined(TEST_ALL) || defined(TEST_LOG)
+        osDelay(100);
         SerialLog(LOG_WARNING, "LOG", "TEST");
         osDelay(100);
 #endif
@@ -167,20 +144,25 @@ void TestTask(void *tes)
 #endif
 
 #if defined(TEST_ALL) || defined(TEST_LSM6DOS)
-        if (LSM6DOS_SetWorkStatus(LSM6DOS_WorkStatusFullPower) != LSM6DOS_DeviceStatusWork)
-        {
+
+        if (LSM6DOS_SetWorkStatus(LSM6DOS_WorkStatusFullPower) != LSM6DOS_DeviceStatusWork) {
             SerialLog(LOG_WARNING, "LSM6DOS", "Error");
         }
 
-        while (1)
-        {
-            SerialLog(LOG_INFO, "TEST", "angle x:%d y:%d z:%d", (int)(angleData.x), (int)(angleData.y),
-                      (int)(angleData.z));
+        osTimerAttr_t dataTimerAttr = {.name = "dataTimer"};
+
+        osTimerId_t timer = osTimerNew(&DataCalcTimer, osTimerPeriodic, NULL, &dataTimerAttr);
+        // 5ms once
+        osTimerStart(timer, 5);
+
+        while (1) {
+            SerialLog(LOG_INFO, "TEST", "angle x:%d y:%d z:%d", (int) (angleData.x), (int) (angleData.y),
+                      (int) (angleData.z));
             // char data[100];
             // memset(data, 0, 100);
             // sprintf(data, "angle x:%d y:%d z:%d \r\n", (int)(angleData.x), (int)(angleData.y), (int)(angleData.z));
             // HAL_UART_Transmit(&huart1, data, 100, 1000);
-            osDelay(100);
+            osDelay(10);
         }
 #endif
         // Release Test Thread

@@ -30,8 +30,9 @@
 #include "usart.h"
 #include "status_light.h"
 #include "ws2812.h"
-#include "log.h"
+//#include "log.h"
 #include "test.h"
+#include "log.h"
 
 /* USER CODE END Includes */
 
@@ -58,7 +59,7 @@
 osThreadId_t mainTaskHandle;
 const osThreadAttr_t mainTask_attributes = {
   .name = "mainTask",
-  .stack_size = 128 * 4,
+  .stack_size = 128 * 2,
   .priority = (osPriority_t) osPriorityHigh,
 };
 
@@ -69,7 +70,6 @@ const osThreadAttr_t mainTask_attributes = {
 
 void StartMainTask(void *argument);
 
-extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
@@ -103,7 +103,14 @@ void MX_FREERTOS_Init(void) {
   mainTaskHandle = osThreadNew(StartMainTask, NULL, &mainTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+
+   InitTest();
+//  InitializeLog(&huart1);
+
+    // SerialLog(LOG_INFO, "System", "SystemUp");
+  // SerialLog(LOG_INFO, "System", "SystemUp1");
+
+    /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -121,18 +128,17 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartMainTask */
 void StartMainTask(void *argument)
 {
-  /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN StartMainTask */
 
-  InitTest();
-  SerialLog(LOG_INFO, "System", "SystemUp");
+  // InitTest();
 
-  /* Infinite loop */
+    /* Infinite loop */
   for(;;)
   {
     HAL_IWDG_Refresh(&hiwdg);
-    osDelay(1);
+    // osDelay(1 / portTICK_PERIOD_MS);
+      vTaskDelay(1 / portTICK_PERIOD_MS);
+      // osDelay(1);
   }
   /* USER CODE END StartMainTask */
 }
