@@ -33,6 +33,7 @@
 //#include "log.h"
 #include "test.h"
 #include "log.h"
+#include "app_main.h"
 
 /* USER CODE END Includes */
 
@@ -103,12 +104,8 @@ void MX_FREERTOS_Init(void) {
   mainTaskHandle = osThreadNew(StartMainTask, NULL, &mainTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-
-   InitTest();
-//  InitializeLog(&huart1);
-
-    // SerialLog(LOG_INFO, "System", "SystemUp");
-  // SerialLog(LOG_INFO, "System", "SystemUp1");
+  launch_app();
+  // InitTest();
 
     /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -136,9 +133,7 @@ void StartMainTask(void *argument)
   for(;;)
   {
     HAL_IWDG_Refresh(&hiwdg);
-    // osDelay(1 / portTICK_PERIOD_MS);
-      vTaskDelay(1 / portTICK_PERIOD_MS);
-      // osDelay(1);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
   /* USER CODE END StartMainTask */
 }

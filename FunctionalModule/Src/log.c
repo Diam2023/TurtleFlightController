@@ -12,19 +12,19 @@
 static TurtleLog *g_pTurtleLog = NULL;
 // size_t            sizeNow;
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart == g_pTurtleLog->m_pHuart)
-    {
-        if (g_pTurtleLog == NULL)
-        {
-            return;
-        }
-        HAL_UART_DMAStop(g_pTurtleLog->m_pHuart);
-
-        osThreadFlagsSet(g_pTurtleLog->m_pLogThread, 0x01);
-    }
-}
+//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+//{
+//    if (huart == g_pTurtleLog->m_pHuart)
+//    {
+//        if (g_pTurtleLog == NULL)
+//        {
+//            return;
+//        }
+//        HAL_UART_DMAStop(g_pTurtleLog->m_pHuart);
+//
+//        osThreadFlagsSet(g_pTurtleLog->m_pLogThread, 0x01);
+//    }
+//}
 
 /**
  * @brief Task For Log Framwok
